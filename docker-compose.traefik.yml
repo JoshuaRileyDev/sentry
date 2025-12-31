@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  nginx:
+    # Remove host port mapping when using Traefik
+    ports: []
+    labels:
+      - "traefik.enable=${TRAEFIK_ENABLE:-true}"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-traefik}"
+
+      # HTTP -> HTTPS redirect
+      - "traefik.http.middlewares.sentry-https-redirect.redirectscheme.scheme=https"
+
+      # HTTP router (redirect only)
+      - "traefik.http.routers.sentry-web.rule=Host(`${SENTRY_HOST}`)"
+      - "traefik.http.routers.sentry-web.entrypoints=${TRAEFIK_ENTRYPOINT_WEB:-web}"
+      - "traefik.http.routers.sentry-web.middlewares=sentry-https-redirect"
+
+      # HTTPS router
+      - "traefik.http.routers.sentry-secure.rule=Host(`${SENTRY_HOST}`)"
+      - "traefik.http.routers.sentry-secure.entrypoints=${TRAEFIK_ENTRYPOINT_WEBSECURE:-websecure}"
+      - "traefik.http.routers.sentry-secure.tls=true"
+      - "traefik.http.routers.sentry-secure.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
+
+      # Service mapping to internal Nginx port
+      - "traefik.http.services.sentry.loadbalancer.server.port=80"
+
+    networks:
+      - default
+      - traefik
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
